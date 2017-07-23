@@ -1,5 +1,6 @@
 import json
 import logging
+from itertools import count
 import uservoice
 
 
@@ -7,24 +8,23 @@ def main():
     logging.basicConfig(level=logging.INFO)
     client = uservoice_client()
     with client.login_as_owner() as owner:
-        extract_all_tickets(owner)
+        tickets = extract_all_tickets(owner)
+        echo(list(tickets))
 
 
 def extract_all_tickets(owner):
-    tickets = []
-    last_page = 1
+    for page in count(1):
+        page = extract_tickets(owner, page)
+        tickets_page = page['tickets']
 
-    page = extract_tickets(owner, last_page)
-
-    tickets_page = page['tickets']
-    last_page = page['response_data']['page']
-
-    tickets += tickets_page
-    echo(tickets)
+        for i in tickets_page:
+            yield i
+        if not tickets_page:
+            break
 
 
 def extract_tickets(owner, page):
-    url = "/api/v1/tickets.json?per_page=2&page={}".format(page)
+    url = "/api/v1/tickets.json?per_page=500&page={}".format(page)
     tickets_page = owner.get(url)
     logging.info('Page %s', tickets_page['response_data']['page'])
     return tickets_page
